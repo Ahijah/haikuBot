@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 use DBI;
+use Lingua::EN::Syllable;
 use strict;
 use warnings;
 
@@ -20,6 +21,7 @@ print "Opened database successfully\n";
 package HaikuBot;
 use base qw(Bot::BasicBot::Pluggable);
 use Regexp::Profanity::US;
+use Lingua::EN::Syllable;
 
 sub said {
   my ($self, $message) = @_;
@@ -55,18 +57,31 @@ sub said {
   } 
  
   #Create new 5 syllable haiku
-  if ($message->{body} =~ /^\!newhaiku5.*$/) {
-    $message->{body} =~ /^\!newhaiku5\s(.*)$/;
+  my $new5regex = "^". quotemeta $config->{trigger5};
+  #$new5regex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
+  if ($message->{body} =~ qr/$new5regex/) {
+    $message->{body} =~ qr/$new5regex\s(.*)$/;
     my @text = split /\|/, $1;
-    my $results = newHaiku(5,$text[0],$message->{who},$text[1], $message);
-    return $results;
+    my $syllables = syllableCheck($text[0]);
+    if( $syllables == 5 ) {
+      return newHaiku(5,$text[0],$message->{who},$text[1], $message);
+    } else {
+      return "Syllable Check Failed: " . $syllables;
+    }
   }
 
   #Create new 7 syllable haiku
-  if ($message->{body} =~ /^\!newhaiku7.*$/) {
-    $message->{body} =~ /^\!newhaiku7\s(.*)$/;
-    my $results = newHaiku(7,$1,$message->{who}, $message);
-    return $results;
+  my $new7regex = "^". quotemeta $config->{trigger7};
+  #$new7regex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
+  if ($message->{body} =~ qr/$new7regex/) {
+    $message->{body} =~ qr/$new7regex\s(.*)$/;
+    my @text = split /\|/, $1;
+    my $syllables = syllableCheck($text[0]);
+    if( $syllables == 7 ) {
+      return newHaiku(7,$text[0],$message->{who},$text[1], $message);
+    } else {
+      return "Syllable Check Failed: " . $syllables;
+    }
   }
 
   #Haiku Stats
@@ -142,7 +157,7 @@ sub newHaiku {
   my $placement = shift;
   my $message = shift;
   if(! defined $placement || ($placement != 1 && $placement != 3)) { $placement = 0; }
-  if(canInsert($user_id) == 1) {
+  if( canInsert($user_id) == 1 ) {
     my $stmt = qq(INSERT INTO haiku (syllable,text,datetime,user_id,placement) 
       SELECT ?, ?, datetime('now'), ?, ? 
       WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
@@ -153,7 +168,7 @@ sub newHaiku {
     } 
     return "New $syllable Syllable Haiku Added: $text";
   } else {
-    return "User Not Authorized -- Msg " + $config->{botOwner} + " for access";
+    return "User Not Authorized -- Msg " . $config->{botOwner} . " for access";
   }
 }
 
@@ -235,6 +250,12 @@ sub commify {
 sub connected {
   my $self = shift;
   $self->mode($self->nick, '+B');
+}
+
+sub syllableCheck {
+  my $haiku = shift;
+  my $count = syllable($haiku);
+  return $count;
 }
 
 sub canInsert {
