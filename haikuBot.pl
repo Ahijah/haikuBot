@@ -254,8 +254,12 @@ sub connected {
 
 sub syllableCheck {
   my $haiku = shift;
-  my $count = syllable($haiku);
-  return $count;
+  my $sylTotal = 0;
+  my @hArray = split /\s+/, $haiku;
+  foreach (@hArray) {
+    $sylTotal = syllable($_) + $sylTotal;
+  }
+  return $sylTotal;
 }
 
 sub canInsert {
