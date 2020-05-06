@@ -23,10 +23,15 @@ use base qw(Bot::BasicBot::Pluggable);
 use Regexp::Profanity::US;
 use Lingua::EN::Syllable;
 
+my $regex = "^([?.!])(" . $config->{trigger} . ")\$";
+my $idregex = "^([?.!])(" . $config->{triggerID} . ')';
+my $new5regex = "^([?.!])(" . $config->{trigger5} . ")";
+my $new7regex = "^([?.!])(" . $config->{trigger7} . ")";
+my $helpregex = "^([?.!])(" . $config->{triggerHelp} . ")\$";
+my $topregex = "^([?.!])(" . $config->{triggerTop} . ")\$";
+
 sub said {
   my ($self, $message) = @_;
-  my $regex = "^".$config->{trigger}.'$';
-  $regex =~s /[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
   if ($message->{body} =~ qr/$regex/) {
     sleep(2);
     # Statement 1
@@ -53,12 +58,18 @@ sub said {
     # Haiku
     my $haikuMsg = $row[2] . " / " . $row2[2] . " / " . $row3[2];
     my $haikuID = saveHaiku($haikuMsg, $message->{who});
-    return $haikuMsg . " -- `$config->{triggerVote} $haikuID` -- $config->{URL}";
+    return $haikuMsg . " -- `\?$config->{triggerVote} $haikuID` -- $config->{URL}";
   } 
- 
+
+  #Haiku by ID
+  if ($message->{body} =~ qr/$idregex/) {
+    $message->{body} =~ qr/$idregex\s+(.*)$/;
+    my $results = haikuID($3);
+    #$message->{channel} = 'msg';
+    return $results;
+  }
+
   #Create new 5 syllable haiku
-  my $new5regex = "^". quotemeta $config->{trigger5};
-  #$new5regex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
   if ($message->{body} =~ qr/$new5regex/) {
     $message->{body} =~ qr/$new5regex\s(.*)$/;
     my @text = split /\|/, $1;
@@ -71,8 +82,6 @@ sub said {
   }
 
   #Create new 7 syllable haiku
-  my $new7regex = "^". quotemeta $config->{trigger7};
-  #$new7regex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
   if ($message->{body} =~ qr/$new7regex/) {
     $message->{body} =~ qr/$new7regex\s(.*)$/;
     my @text = split /\|/, $1;
@@ -85,23 +94,19 @@ sub said {
   }
 
   #Haiku Stats
-  my $statsregex = "^".$config->{triggerStats}.'$';
-  $statsregex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
+  my $statsregex = "^([?.!])(" . $config->{triggerStats} . ")\$";
   if ($message->{body} =~ qr/$statsregex/) {
     return haikuStats();
   }
   
   #Vote for generated Haiku
-  my $voteregex = "^".$config->{triggerVote};
-  $voteregex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
+  my $voteregex = "^([?.!])(" . $config->{triggerVote} . ")";
   if ($message->{body} =~ qr/$voteregex/) {
     $message->{body} =~ qr/$voteregex\s(.*)$/;
     return haikuVote($1, $message->{who}, $message);
   }
 
   #Haiku Help
-  my $helpregex = "^".$config->{triggerHelp}.'$';
-  $helpregex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
   if ($message->{body} =~ qr/$helpregex/) {
     my $helpText =  $config->{helpText};
     $self->say(
@@ -111,23 +116,7 @@ sub said {
     );
   }
 
-  #Haiku List
-  my $listregex = "^".$config->{triggerList};
-  $listregex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
-  if ($message->{body} =~ qr/$listregex/) {
-    $message->{body} =~ qr/$listregex\s(.*)$/;
-    my $haikuID = 0;
-    if($1) {
-      $haikuID = $1;
-    }
-    my $results = haikuList($haikuID,$message);
-    $message->{channel} = 'msg';
-    return $results;
-  }
-
   #Top 5
-  my $topregex = "^".$config->{triggerTop}.'$';
-  $topregex =~ s/[\?*+[]\(\)\{\}\|-]/"\$&"/eg;
   if ($message->{body} =~ qr/$topregex/) {
     my $results = haikuTop(5,$message);
     $message->{channel} = 'msg';
@@ -189,24 +178,20 @@ sub haikuVote {
   my $haikuID = shift;
   my $user_id = shift;
   my $message = shift;
-  if(!$haikuID || !$user_id || !$message) { return "Missing ID -- See more: " . $config->{URL} . " -- See " . $config->{triggerHelp}; }
+  if(!$haikuID || !$user_id || !$message) { return "Missing ID -- See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp}; }
   my $stmt = qq(INSERT INTO haiku_votes (haiku_id, user_id, datetime) 
     SELECT ?, ?, datetime('now')
     WHERE NOT EXISTS (SELECT 1 FROM haiku_votes WHERE haiku_id = ? AND user_id = ?));
   my $sth = $dbh->prepare( $stmt );
   my $rv = $dbh->do($stmt, undef, $haikuID, $user_id, $haikuID, $user_id) or die $DBI::errstr;
   $message->{channel} = 'msg';
-  return "Thanks for voting! See more: " . $config->{URL} . " -- See " . $config->{triggerHelp};
+  return "Thanks for voting! See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp};
 }
 
-sub haikuList {
-  my ($id, $message) = @_;
-  my $stmt;
-  if($id != 0) {
-    $stmt = "SELECT id, haiku FROM generated_haiku WHERE id = ? ORDER BY datetime";
-  } else {
-    $stmt = "SELECT id, haiku FROM generated_haiku ORDER BY datetime";
-  }
+sub haikuID {
+  my $id = shift;
+  if(!$id) { return "Missing ID -- See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp}; }
+  my $stmt = "SELECT id, haiku FROM generated_haiku WHERE id = ? ORDER BY datetime";
   my $sth = $dbh->prepare( $stmt );
   $sth->bind_param(1, $id);
   $sth->execute() or die $DBI::errstr;
@@ -237,7 +222,7 @@ sub haikuTop {
     my ($rowid, $count, $haiku, $datetime) = @$row;
     $results .= "Votes: " . $count . " -- " . "ID: " . $rowid . " -- " . $haiku . "\n";
   }
-  $results .= "Upvote using: " . $config->{triggerVote} . " <ID> -- See " . $config->{triggerHelp} . "\n";
+  $results .= "Upvote using: ?" . $config->{triggerVote} . " <ID> -- See ?" . $config->{triggerHelp} . "\n";
   return $results;
 }
 

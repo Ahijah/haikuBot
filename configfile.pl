@@ -7,16 +7,15 @@
 	dbpass => '',
 	botOwner => 'Xafloc',
 	URL => 'https://apps.rego.ai/HaikuBot',
-	# APIURL => 'https://api.datamuse.com/words?md=s&max=1&sp=',
-	# Be sure to escape special characters
-	trigger => '?haiku', 
-	triggerStats => '?haikustats',
-	triggerVote => '?haikuvote',
-	triggerHelp => '?haikuhelp',
-	triggerList => '?haikulist',
-	triggerTop => '?haikutop',
-	trigger5 => '?haiku5',
-	trigger7 => '?haiku7',
+	# Enter the trigger commands without any special characters. The bot will look for ? or !
+	trigger => 'haiku', 
+	triggerStats => 'haikustats',
+	triggerVote => 'haikuvote',
+	triggerHelp => 'haikuhelp',
+	triggerID => 'haikuid',
+	triggerTop => 'haikutop',
+	trigger5 => 'haiku5',
+	trigger7 => 'haiku7',
 
 	##############################################
 	# Profanity Settings
