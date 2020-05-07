@@ -72,7 +72,7 @@ sub said {
   #Create new 5 syllable haiku
   if ($message->{body} =~ qr/$new5regex/) {
     $message->{body} =~ qr/$new5regex\s(.*)$/;
-    my @text = split /\|/, $1;
+    my @text = split /\|/, $3;
     my $syllables = syllableCheck($text[0]);
     if( $syllables == 5 ) {
       return newHaiku(5,$text[0],$message->{who},$text[1], $message);
@@ -84,7 +84,7 @@ sub said {
   #Create new 7 syllable haiku
   if ($message->{body} =~ qr/$new7regex/) {
     $message->{body} =~ qr/$new7regex\s(.*)$/;
-    my @text = split /\|/, $1;
+    my @text = split /\|/, $3;
     my $syllables = syllableCheck($text[0]);
     if( $syllables == 7 ) {
       return newHaiku(7,$text[0],$message->{who},$text[1], $message);
@@ -103,7 +103,7 @@ sub said {
   my $voteregex = "^([?.!])(" . $config->{triggerVote} . ")";
   if ($message->{body} =~ qr/$voteregex/) {
     $message->{body} =~ qr/$voteregex\s(.*)$/;
-    return haikuVote($1, $message->{who}, $message);
+    return haikuVote($3, $message->{who}, $message);
   }
 
   #Haiku Help
