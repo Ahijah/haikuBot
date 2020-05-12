@@ -22,11 +22,13 @@ package HaikuBot;
 use base qw(Bot::BasicBot::Pluggable);
 use Regexp::Profanity::US;
 use Lingua::EN::Syllable;
+use Lingua::EN::Numbers qw(num2en num2en_ordinal);
 
 my $regex = "^([?.!])(" . $config->{trigger} . ")\$";
 my $idregex = "^([?.!])(" . $config->{triggerID} . ')';
 my $new5regex = "^([?.!])(" . $config->{trigger5} . ")";
 my $new7regex = "^([?.!])(" . $config->{trigger7} . ")";
+my $sylregex = "^([?.!])(" . $config->{triggerSyl} . ")";
 my $helpregex = "^([?.!])(" . $config->{triggerHelp} . ")\$";
 my $topregex = "^([?.!])(" . $config->{triggerTop} . ")\$";
 
@@ -91,6 +93,13 @@ sub said {
     } else {
       return "Syllable Check Failed: " . $syllables;
     }
+  }
+
+  # Syllable check
+  if ($message->{body} =~ qr/$sylregex/) {
+    $message->{body} =~ qr/$sylregex\s(.*)$/;
+    my $syllables = syllableCheck($3);
+    return "Syllable Count: " . $syllables;
   }
 
   #Haiku Stats
@@ -239,12 +248,23 @@ sub connected {
 
 sub syllableCheck {
   my $haiku = shift;
+  my $nHaiku = numberify($haiku);
   my $sylTotal = 0;
-  my @hArray = split /\s+/, $haiku;
+  my @hArray = split /\s+/, $nHaiku;
   foreach (@hArray) {
     $sylTotal = syllable($_) + $sylTotal;
   }
   return $sylTotal;
+}
+
+sub numberify {
+  my $haiku = shift;
+  my @all_nums = $haiku =~ /(\d+)/g;
+  foreach (@all_nums) {
+    my $tNum = num2en($_);
+    $haiku =~ s/$_/$tNum/g;
+  }
+  return $haiku;
 }
 
 sub canInsert {

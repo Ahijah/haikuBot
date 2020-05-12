@@ -16,6 +16,7 @@
 	triggerTop => 'haikutop',
 	trigger5 => 'haiku5',
 	trigger7 => 'haiku7',
+	triggerSyl => 'syllables',
 
 	##############################################
 	# Profanity Settings
@@ -46,5 +47,8 @@
 		"  E.g. !haiku5 this must be the end|3\n" .
 		"?haiku7 <7 syllable haiku line> - (Creates a new 7 syllable haiku line)\n" .
 		"?haikutop - (PMs the top 5 voted randomly generated haiku)\n" .
+		"?haikuid <Haiku ID> - (Returns generated Haiku of passed ID)\n" .
+		"?syllables <string> - (Returns syllable count of passed string)\n" .
+		"\n" . 
 		" --Web List of Generated Haiku: https://apps.rego.ai/HaikuBot",
 }
