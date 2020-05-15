@@ -7,8 +7,10 @@
 	dbpass => '',
 	botOwner => 'Xafloc',
 	URL => 'https://apps.rego.ai/HaikuBot',
+	qURL => 'https://apps.rego.ai/qHaikuBot',
 	# Enter the trigger commands without any special characters. The bot will look for ? or !
 	trigger => 'haiku', 
+	triggerQuote => 'qhaiku', 
 	triggerStats => 'haikustats',
 	triggerVote => 'haikuvote',
 	triggerHelp => 'haikuhelp',
@@ -28,8 +30,10 @@
 	##############################################
 	ircServer => 'irc.darkscience.net',
 	ircPort => '6697',
-	ircChannels => ['#haiku'],
-	#ircChannels => ['#bots','#haiku'],
+	#ircChannels => ['#haiku'],
+	ircChannels => ['#bots','#haiku'],
+	#ircQuoteChannels => ['#darkscience'],
+	ircQuoteChannels => ('#bots','#haiku'),
 	ircNick => 'haikuBot',
 	ircPass => '',
 	ircName => 'Haiku Bot',

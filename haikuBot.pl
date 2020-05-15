@@ -25,33 +25,58 @@ use Lingua::EN::Syllable;
 use Lingua::EN::Numbers qw(num2en num2en_ordinal);
 
 my $regex = "^([?.!])(" . $config->{trigger} . ")\$";
+my $quoteregex = "^([?.!])(" . $config->{triggerQuote} . ")\$";
 my $idregex = "^([?.!])(" . $config->{triggerID} . ')';
 my $new5regex = "^([?.!])(" . $config->{trigger5} . ")";
 my $new7regex = "^([?.!])(" . $config->{trigger7} . ")";
 my $sylregex = "^([?.!])(" . $config->{triggerSyl} . ")";
 my $helpregex = "^([?.!])(" . $config->{triggerHelp} . ")\$";
 my $topregex = "^([?.!])(" . $config->{triggerTop} . ")\$";
+my @channels = @{ $config->{ircQuoteChannels} };
+
+open my $words, '<', 'words' or die "Cannot open dict: $!\n";
+chomp(my @dict = <$words>);
+close $words;
 
 sub said {
   my ($self, $message) = @_;
-  if ($message->{body} =~ qr/$regex/) {
+  my $channel = $message->{channel};
+
+  if ($message->{body} =~ qr/$regex/ || $message->{body} =~ qr/$quoteregex/) {
     sleep(2);
+
+    my $stmt;
+    my $stmt2;
+    my $stmt3;
+
     # Statement 1
-    my $stmt = qq(SELECT id, syllable, text, datetime, user_id FROM haiku WHERE syllable = 5 AND placement != 3 ORDER BY random() LIMIT 1;);
+    if($message->{body} =~ qr/$regex/) {
+      $stmt = qq(SELECT id, syllable, text, datetime, user_id FROM haiku WHERE syllable = 5 AND placement != 3 ORDER BY random() LIMIT 1;);
+    } else {
+      $stmt = qq(SELECT id, syllable, text, datetime, user_id FROM quotehaiku WHERE syllable = 5 AND placement != 3 ORDER BY random() LIMIT 1;);
+    }
     my $sth = $dbh->prepare( $stmt );
     my $rv = $sth->execute() or die $DBI::errstr;
     if($rv < 0) { return $DBI::errstr; }
     my @row = $sth->fetchrow_array();
 
     # Statement 2
-    my $stmt2 = qq(SELECT id, syllable, text, datetime, user_id from haiku where syllable = 7 order by random() limit 1;);
+    if($message->{body} =~ qr/$regex/) {
+      $stmt2 = qq(SELECT id, syllable, text, datetime, user_id from haiku where syllable = 7 order by random() limit 1;);
+    } else {
+      $stmt2 = qq(SELECT id, syllable, text, datetime, user_id from quotehaiku where syllable = 7 order by random() limit 1;);
+    }
     my $sth2 = $dbh->prepare( $stmt2 );
     my $rv2 = $sth2->execute() or die $DBI::errstr;
     if($rv2 < 0) { return $DBI::errstr; }
     my @row2 = $sth2->fetchrow_array();
 
     # Statement 3
-    my $stmt3 = qq(SELECT id, syllable, text, datetime, user_id FROM haiku WHERE syllable = 5 AND placement != 1 ORDER BY random() limit 1;);
+    if($message->{body} =~ qr/$regex/) {
+      $stmt3 = qq(SELECT id, syllable, text, datetime, user_id FROM haiku WHERE syllable = 5 AND placement != 1 ORDER BY random() limit 1;);
+    } else {
+      $stmt3 = qq(SELECT id, syllable, text, datetime, user_id FROM quotehaiku WHERE syllable = 5 AND placement != 1 ORDER BY random() limit 1;);
+    }
     my $sth3 = $dbh->prepare( $stmt3 );
     my $rv3 = $sth3->execute() or die $DBI::errstr;
     if($rv3 < 0) { return $DBI::errstr; }
@@ -59,8 +84,17 @@ sub said {
 
     # Haiku
     my $haikuMsg = $row[2] . " / " . $row2[2] . " / " . $row3[2];
-    my $haikuID = saveHaiku($haikuMsg, $message->{who});
-    return $haikuMsg . " -- `\?$config->{triggerVote} $haikuID` -- $config->{URL}";
+    my $sources = $row[4] . "," . $row2[4] . "," . $row3[4];
+    if($message->{body} =~ qr/$regex/) {
+      my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_haiku", $sources);
+      return $haikuMsg . " -- `\?$config->{triggerVote} $haikuID` -- $config->{URL}";
+    } else {
+      $row[4] =~ s/..$/\.\./;
+      $row2[4] =~ s/..$/\.\./;
+      $row3[4] =~ s/..$/\.\./;
+      my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_quotehaiku", $sources);
+      return $haikuMsg . " -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
+    } 
   } 
 
   #Haiku by ID
@@ -77,7 +111,7 @@ sub said {
     my @text = split /\|/, $3;
     my $syllables = syllableCheck($text[0]);
     if( $syllables == 5 ) {
-      return newHaiku(5,$text[0],$message->{who},$text[1], $message);
+      return newHaiku(5,$text[0],$message->{who},$text[1], $message, "haiku");
     } else {
       return "Syllable Check Failed: " . $syllables;
     }
@@ -89,7 +123,7 @@ sub said {
     my @text = split /\|/, $3;
     my $syllables = syllableCheck($text[0]);
     if( $syllables == 7 ) {
-      return newHaiku(7,$text[0],$message->{who},$text[1], $message);
+      return newHaiku(7,$text[0],$message->{who},$text[1], $message, "haiku");
     } else {
       return "Syllable Check Failed: " . $syllables;
     }
@@ -131,13 +165,14 @@ sub said {
     $message->{channel} = 'msg';
     return $results;
   }
+  
+  # Auto creation of haiku based upon syllables
+  if ( grep { $_ eq $channel} @channels ) {
+    quoteHaiku($message);
+  }
 
   return;
 }
-
-#sub help {
-#  "Base Commands: !haiku -- !haikuhelp for more"
-#}
 
 sub haikuStats {
   my $stmt = qq(SELECT SUM(CASE WHEN syllable = 5 THEN 1 END) AS syl5, SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 1) THEN 1 END) AS syl5a, SUM(CASE WHEN syllable = 7 THEN 1 END) AS syl7, SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 3) THEN 1 END) AS syl5b FROM haiku;);
@@ -154,11 +189,19 @@ sub newHaiku {
   my $user_id = shift;
   my $placement = shift;
   my $message = shift;
+  my $table = shift;
   if(! defined $placement || ($placement != 1 && $placement != 3)) { $placement = 0; }
-  if( canInsert($user_id) == 1 ) {
-    my $stmt = qq(INSERT INTO haiku (syllable,text,datetime,user_id,placement) 
-      SELECT ?, ?, datetime('now'), ?, ? 
-      WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
+  if( canInsert($user_id) == 1 || $table eq "quotehaiku" ) {
+    my $stmt;
+    if($table eq "haiku") {
+      $stmt = qq(INSERT INTO haiku (syllable,text,datetime,user_id,placement) 
+        SELECT ?, ?, datetime('now'), ?, ? 
+        WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
+    } elsif($table eq "quotehaiku") {
+      $stmt = qq(INSERT INTO quotehaiku (syllable,text,datetime,user_id,placement) 
+        SELECT ?, ?, datetime('now'), ?, ? 
+        WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
+    }
     my $sth = $dbh->prepare( $stmt );
     my $profane = profane($text, $config->{degree});
     if($profane eq "0") {
@@ -170,14 +213,38 @@ sub newHaiku {
   }
 }
 
+sub quoteHaiku {
+  my $message = shift;
+  my $syllables = syllableCheck($message->{body});
+  if($syllables != 5 && $syllables != 7) { return; }
+  my $wordsOnly = wordCheck($message->{body});
+  if(!$wordsOnly) { return; }
+  if( $syllables == 5 ) {
+    my $return = newHaiku(5,$message->{body},$message->{who},0,$message,"quotehaiku");
+    print "$return\n";
+  } elsif( $syllables == 7 ) {
+    my $return = newHaiku(7,$message->{body},$message->{who},0,$message,"quotehaiku");
+    print "$return\n";
+  }
+}
+
 sub saveHaiku {
   my $text = shift;
   my $user_id = shift;
-  my $stmt = qq(INSERT INTO generated_haiku (haiku,datetime,user_id) 
-    SELECT ?, datetime('now'), ? 
-    WHERE NOT EXISTS (SELECT 1 FROM generated_haiku WHERE lower(haiku) = lower(?)));
+  my $table = shift;
+  my $sources = shift;
+  my $stmt;
+  if($table eq "generated_haiku") {
+    $stmt = qq(INSERT INTO generated_haiku (haiku,datetime,user_id,sources) 
+      SELECT ?, datetime('now'), ?, ? 
+      WHERE NOT EXISTS (SELECT 1 FROM generated_haiku WHERE lower(haiku) = lower(?)));
+  } elsif($table eq "generated_quotehaiku") {
+    $stmt = qq(INSERT INTO generated_quotehaiku (haiku,datetime,user_id,sources) 
+      SELECT ?, datetime('now'), ?, ? 
+      WHERE NOT EXISTS (SELECT 1 FROM generated_haiku WHERE lower(haiku) = lower(?)));
+  }
   my $sth = $dbh->prepare( $stmt );
-  my $rv = $dbh->do($stmt, undef, $text, $user_id, $text) or die $DBI::errstr;
+  my $rv = $dbh->do($stmt, undef, $text, $user_id, $sources, $text) or die $DBI::errstr;
   my $rowid = $dbh->last_insert_id();
 
   return $rowid; 
@@ -256,6 +323,28 @@ sub syllableCheck {
   }
   return $sylTotal;
 }
+
+sub wordCheck {
+  my $haiku = shift;
+  my @hArray = split /\s+/, $haiku;
+
+  foreach my $hWord (@hArray) {
+    if ( grep { $_ eq $hWord} @dict ) {
+    } else {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+#sub wordCheck {
+#  my $haiku = shift;
+#  if ($haiku =~ m/[^a-zA-Z\s]/) {
+#    return 0;
+#  } else {
+#    return 1;
+#  }
+#}
 
 sub numberify {
   my $haiku = shift;
