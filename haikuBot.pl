@@ -95,7 +95,7 @@ sub said {
       $row2[4] =~ s/..$/\.\./;
       $row3[4] =~ s/..$/\.\./;
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_quotehaiku", $sources);
-      return $haikuMsg . " -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
+      return $haikuMsg . " -- `\?$config->{triggerQVote} $haikuID` -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
     }
   }
 
