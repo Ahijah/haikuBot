@@ -9,10 +9,11 @@
 	URL => 'https://apps.rego.ai/HaikuBot',
 	qURL => 'https://apps.rego.ai/qHaikuBot',
 	# Enter the trigger commands without any special characters. The bot will look for ? or !
-	trigger => 'haiku', 
-	triggerQuote => 'qhaiku', 
+	trigger => 'haiku',
+	triggerQuote => 'qhaiku',
 	triggerStats => 'haikustats',
 	triggerVote => 'haikuvote',
+	triggerQVote => 'qhaikuvote',
 	triggerHelp => 'haikuhelp',
 	triggerID => 'haikuid',
 	triggerTop => 'haikutop',
@@ -53,6 +54,6 @@
 		"?haikutop - (PMs the top 5 voted randomly generated haiku)\n" .
 		"?haikuid <Haiku ID> - (Returns generated Haiku of passed ID)\n" .
 		"?syllables <string> - (Returns syllable count of passed string)\n" .
-		"\n" . 
+		"\n" .
 		" --Web List of Generated Haiku: https://apps.rego.ai/HaikuBot",
 }
