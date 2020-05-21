@@ -8,16 +8,16 @@ my $config = do("./configfile.pl");
 die "Error parsing config file: $@" if $@;
 die "Error reading config file: $!" unless defined $config;
 
-my $driver   = "SQLite"; 
+my $driver   = "SQLite";
 my $database = $config->{database};
 my $dsn = "DBI:$driver:dbname=$database";
 my $userid = $config->{dbuser};
 my $password = $config->{dbpass};
-my $dbh = DBI->connect($dsn, $userid, $password, { RaiseError => 1 }) 
+my $dbh = DBI->connect($dsn, $userid, $password, { RaiseError => 1 })
    or die $DBI::errstr;
 
 print "Opened database successfully\n";
- 
+
 package HaikuBot;
 use base qw(Bot::BasicBot::Pluggable);
 use Regexp::Profanity::US;
@@ -94,8 +94,8 @@ sub said {
       $row3[4] =~ s/..$/\.\./;
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_quotehaiku", $sources);
       return $haikuMsg . " -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
-    } 
-  } 
+    }
+  }
 
   #Haiku by ID
   if ($message->{body} =~ qr/$idregex/) {
@@ -141,7 +141,7 @@ sub said {
   if ($message->{body} =~ qr/$statsregex/) {
     return haikuStats();
   }
-  
+
   #Vote for generated Haiku
   my $voteregex = "^([?.!])(" . $config->{triggerVote} . ")";
   if ($message->{body} =~ qr/$voteregex/) {
@@ -165,7 +165,7 @@ sub said {
     $message->{channel} = 'msg';
     return $results;
   }
-  
+
   # Auto creation of haiku based upon syllables
   if ( grep { $_ eq $channel} @channels ) {
     quoteHaiku($message);
@@ -175,12 +175,30 @@ sub said {
 }
 
 sub haikuStats {
-  my $stmt = qq(SELECT SUM(CASE WHEN syllable = 5 THEN 1 END) AS syl5, SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 1) THEN 1 END) AS syl5a, SUM(CASE WHEN syllable = 7 THEN 1 END) AS syl7, SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 3) THEN 1 END) AS syl5b FROM haiku;);
+  my $response = '';
+  my $stmt = qq(SELECT SUM(CASE WHEN syllable = 5 THEN 1 END) AS syl5,
+    SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 1) THEN 1 END) AS syl5a,
+    SUM(CASE WHEN syllable = 7 THEN 1 END) AS syl7,
+    SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 3) THEN 1 END) AS syl5b
+    FROM haiku;);
   my $sth = $dbh->prepare( $stmt );
   my $rv = $sth->execute() or die $DBI::errstr;
   if($rv < 0) { return $DBI::errstr; }
   my @row = $sth->fetchrow_array();
-  return "5 Syllable Lines: " . $row[0] . " | 7 Syllable Lines: " . $row[2] . " | Possible Permutations: " . commify(($row[1] * $row[2] * ($row[3]-1)));
+  $response .= "ORIGINAL: 5 Syllable Lines: " . $row[0] . " | 7 Syllable Lines: " . $row[2] . " | Possible Permutations: " . commify(($row[1] * $row[2] * ($row[3]-1)));
+
+  my $stmt2 = qq(SELECT SUM(CASE WHEN syllable = 5 THEN 1 END) AS syl5,
+    SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 1) THEN 1 END) AS syl5a,
+    SUM(CASE WHEN syllable = 7 THEN 1 END) AS syl7,
+    SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 3) THEN 1 END) AS syl5b
+    FROM haiku;);
+  my $sth2 = $dbh->prepare( $stmt2 );
+  my $rv2 = $sth2->execute() or die $DBI::errstr;
+  if($rv2 < 0) { return $DBI::errstr; }
+  my @row2 = $sth2->fetchrow_array();
+  $response .= "QUOTES: 5 Syllable Lines: " . $row2[0] . " | 7 Syllable Lines: " . $row2[2] . " | Possible Permutations: " . commify(($row2[1] * $row2[2] * ($row2[3]-1)));
+
+  return $response;
 }
 
 sub newHaiku {
@@ -194,19 +212,19 @@ sub newHaiku {
   if( canInsert($user_id) == 1 || $table eq "quotehaiku" ) {
     my $stmt;
     if($table eq "haiku") {
-      $stmt = qq(INSERT INTO haiku (syllable,text,datetime,user_id,placement) 
-        SELECT ?, ?, datetime('now'), ?, ? 
+      $stmt = qq(INSERT INTO haiku (syllable,text,datetime,user_id,placement)
+        SELECT ?, ?, datetime('now'), ?, ?
         WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
     } elsif($table eq "quotehaiku") {
-      $stmt = qq(INSERT INTO quotehaiku (syllable,text,datetime,user_id,placement) 
-        SELECT ?, ?, datetime('now'), ?, ? 
+      $stmt = qq(INSERT INTO quotehaiku (syllable,text,datetime,user_id,placement)
+        SELECT ?, ?, datetime('now'), ?, ?
         WHERE NOT EXISTS (SELECT 1 FROM haiku WHERE lower(text) = lower(?)));
     }
     my $sth = $dbh->prepare( $stmt );
     my $profane = profane($text, $config->{degree});
     if($profane eq "0") {
       my $rv = $dbh->do($stmt, undef, $syllable, $text, $user_id, $placement, $text) or die $DBI::errstr;
-    } 
+    }
     return "New $syllable Syllable Haiku Added: $text";
   } else {
     return "User Not Authorized -- Msg " . $config->{botOwner} . " for access";
@@ -235,19 +253,19 @@ sub saveHaiku {
   my $sources = shift;
   my $stmt;
   if($table eq "generated_haiku") {
-    $stmt = qq(INSERT INTO generated_haiku (haiku,datetime,user_id,sources) 
-      SELECT ?, datetime('now'), ?, ? 
+    $stmt = qq(INSERT INTO generated_haiku (haiku,datetime,user_id,sources)
+      SELECT ?, datetime('now'), ?, ?
       WHERE NOT EXISTS (SELECT 1 FROM generated_haiku WHERE lower(haiku) = lower(?)));
   } elsif($table eq "generated_quotehaiku") {
-    $stmt = qq(INSERT INTO generated_quotehaiku (haiku,datetime,user_id,sources) 
-      SELECT ?, datetime('now'), ?, ? 
+    $stmt = qq(INSERT INTO generated_quotehaiku (haiku,datetime,user_id,sources)
+      SELECT ?, datetime('now'), ?, ?
       WHERE NOT EXISTS (SELECT 1 FROM generated_haiku WHERE lower(haiku) = lower(?)));
   }
   my $sth = $dbh->prepare( $stmt );
   my $rv = $dbh->do($stmt, undef, $text, $user_id, $sources, $text) or die $DBI::errstr;
   my $rowid = $dbh->last_insert_id();
 
-  return $rowid; 
+  return $rowid;
 }
 
 sub haikuVote {
@@ -255,7 +273,7 @@ sub haikuVote {
   my $user_id = shift;
   my $message = shift;
   if(!$haikuID || !$user_id || !$message) { return "Missing ID -- See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp}; }
-  my $stmt = qq(INSERT INTO haiku_votes (haiku_id, user_id, datetime) 
+  my $stmt = qq(INSERT INTO haiku_votes (haiku_id, user_id, datetime)
     SELECT ?, ?, datetime('now')
     WHERE NOT EXISTS (SELECT 1 FROM haiku_votes WHERE haiku_id = ? AND user_id = ?));
   my $sth = $dbh->prepare( $stmt );
@@ -284,9 +302,9 @@ sub haikuTop {
   my ($top, $message) = @_;
   my $stmt;
 
-  $stmt = qq(SELECT h.id, count(hv.haiku_id) as votes, h.haiku, h.datetime 
-    FROM generated_haiku h 
-    INNER JOIN haiku_votes hv ON h.id = hv.haiku_id 
+  $stmt = qq(SELECT h.id, count(hv.haiku_id) as votes, h.haiku, h.datetime
+    FROM generated_haiku h
+    INNER JOIN haiku_votes hv ON h.id = hv.haiku_id
     GROUP BY h.id ORDER BY votes DESC, h.datetime DESC LIMIT ?);
 
   my $sth = $dbh->prepare( $stmt );
@@ -376,4 +394,3 @@ my $bot = HaikuBot->new(
     ssl         => $config->{ircSSL},
 )->run();
 HaikuBot->load("Log");
-
