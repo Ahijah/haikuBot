@@ -32,6 +32,8 @@ my $new7regex = "^([?.!])(" . $config->{trigger7} . ")";
 my $sylregex = "^([?.!])(" . $config->{triggerSyl} . ")";
 my $helpregex = "^([?.!])(" . $config->{triggerHelp} . ")\$";
 my $topregex = "^([?.!])(" . $config->{triggerTop} . ")\$";
+my $voteregex = "^([?.!])(" . $config->{triggerVote} . ")";
+my $qvoteregex = "^([?.!])(" . $config->{triggerQVote} . ")";
 my @channels = @{ $config->{ircQuoteChannels} };
 
 open my $words, '<', 'words' or die "Cannot open dict: $!\n";
@@ -143,10 +145,15 @@ sub said {
   }
 
   #Vote for generated Haiku
-  my $voteregex = "^([?.!])(" . $config->{triggerVote} . ")";
   if ($message->{body} =~ qr/$voteregex/) {
     $message->{body} =~ qr/$voteregex\s(.*)$/;
     return haikuVote($3, $message->{who}, $message);
+  }
+
+  #Vote for generated Quote Haiku
+  if ($message->{body} =~ qr/$qvoteregex/) {
+    $message->{body} =~ qr/$qvoteregex\s(.*)$/;
+    return haikuQVote($3, $message->{who}, $message);
   }
 
   #Haiku Help
@@ -280,6 +287,20 @@ sub haikuVote {
   my $rv = $dbh->do($stmt, undef, $haikuID, $user_id, $haikuID, $user_id) or die $DBI::errstr;
   $message->{channel} = 'msg';
   return "Thanks for voting! See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp};
+}
+
+sub haikuQVote {
+  my $haikuID = shift;
+  my $user_id = shift;
+  my $message = shift;
+  if(!$haikuID || !$user_id || !$message) { return "Missing ID -- See more: " . $config->{qURL} . " -- See ?" . $config->{triggerHelp}; }
+  my $stmt = qq(INSERT INTO quotehaiku_votes (haiku_id, user_id, datetime)
+    SELECT ?, ?, datetime('now')
+    WHERE NOT EXISTS (SELECT 1 FROM quotehaiku_votes WHERE haiku_id = ? AND user_id = ?));
+  my $sth = $dbh->prepare( $stmt );
+  my $rv = $dbh->do($stmt, undef, $haikuID, $user_id, $haikuID, $user_id) or die $DBI::errstr;
+  $message->{channel} = 'msg';
+  return "Thanks for voting! See more: " . $config->{qURL} . " -- See ?" . $config->{triggerHelp};
 }
 
 sub haikuID {
