@@ -91,9 +91,9 @@ sub said {
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_haiku", $sources);
       return $haikuMsg . " -- `\?$config->{triggerVote} $haikuID` -- $config->{URL}";
     } else {
-      $row[4] =~ s/..$/\.\./;
-      $row2[4] =~ s/..$/\.\./;
-      $row3[4] =~ s/..$/\.\./;
+      $row[4] =~ s/.$/\./;
+      $row2[4] =~ s/.$/\./;
+      $row3[4] =~ s/.$/\./;
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_quotehaiku", $sources);
       return $haikuMsg . " -- `\?$config->{triggerQVote} $haikuID` -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
     }
