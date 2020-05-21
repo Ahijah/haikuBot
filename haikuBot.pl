@@ -185,13 +185,13 @@ sub haikuStats {
   my $rv = $sth->execute() or die $DBI::errstr;
   if($rv < 0) { return $DBI::errstr; }
   my @row = $sth->fetchrow_array();
-  $response .= "ORIGINAL: 5 Syllable Lines: " . $row[0] . " | 7 Syllable Lines: " . $row[2] . " | Possible Permutations: " . commify(($row[1] * $row[2] * ($row[3]-1)));
+  $response .= "ORIGINAL: 5 Syllable Lines: " . $row[0] . " | 7 Syllable Lines: " . $row[2] . " | Possible Permutations: " . commify(($row[1] * $row[2] * ($row[3]-1))) . "\n";
 
   my $stmt2 = qq(SELECT SUM(CASE WHEN syllable = 5 THEN 1 END) AS syl5,
     SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 1) THEN 1 END) AS syl5a,
     SUM(CASE WHEN syllable = 7 THEN 1 END) AS syl7,
     SUM(CASE WHEN syllable = 5 AND (placement = 0 OR placement = 3) THEN 1 END) AS syl5b
-    FROM haiku;);
+    FROM quotehaiku;);
   my $sth2 = $dbh->prepare( $stmt2 );
   my $rv2 = $sth2->execute() or die $DBI::errstr;
   if($rv2 < 0) { return $DBI::errstr; }
