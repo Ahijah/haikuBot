@@ -27,6 +27,7 @@ use Lingua::EN::Numbers qw(num2en num2en_ordinal);
 my $regex = "^([?.!])(" . $config->{trigger} . ")\$";
 my $quoteregex = "^([?.!])(" . $config->{triggerQuote} . ")\$";
 my $idregex = "^([?.!])(" . $config->{triggerID} . ')';
+my $qidregex = "^([?.!])(" . $config->{triggerQID} . ')';
 my $new5regex = "^([?.!])(" . $config->{trigger5} . ")";
 my $new7regex = "^([?.!])(" . $config->{trigger7} . ")";
 my $sylregex = "^([?.!])(" . $config->{triggerSyl} . ")";
@@ -91,9 +92,9 @@ sub said {
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_haiku", $sources);
       return $haikuMsg . " -- `\?$config->{triggerVote} $haikuID` -- $config->{URL}";
     } else {
-      $row[4] =~ s/.$/\./;
-      $row2[4] =~ s/.$/\./;
-      $row3[4] =~ s/.$/\./;
+      $row[4] =~ s/..$/\.\./;
+      $row2[4] =~ s/..$/\.\./;
+      $row3[4] =~ s/..$/\.\./;
       my $haikuID = saveHaiku($haikuMsg, $message->{who}, "generated_quotehaiku", $sources);
       return $haikuMsg . " -- `\?$config->{triggerQVote} $haikuID` -- Sources: (" . $row[4] . "," . $row2[4] . "," . $row3[4] . ") -- $config->{qURL}";
     }
@@ -103,6 +104,14 @@ sub said {
   if ($message->{body} =~ qr/$idregex/) {
     $message->{body} =~ qr/$idregex\s+(.*)$/;
     my $results = haikuID($3);
+    #$message->{channel} = 'msg';
+    return $results;
+  }
+
+  #Quote Haiku by ID
+  if ($message->{body} =~ qr/$qidregex/) {
+    $message->{body} =~ qr/$qidregex\s+(.*)$/;
+    my $results = haikuQID($3);
     #$message->{channel} = 'msg';
     return $results;
   }
@@ -307,6 +316,22 @@ sub haikuID {
   my $id = shift;
   if(!$id) { return "Missing ID -- See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp}; }
   my $stmt = "SELECT id, haiku FROM generated_haiku WHERE id = ? ORDER BY datetime";
+  my $sth = $dbh->prepare( $stmt );
+  $sth->bind_param(1, $id);
+  $sth->execute() or die $DBI::errstr;
+  my $data = $sth->fetchall_arrayref();
+  my $results;
+  for my $row (@$data) {
+    my ($rowid, $haiku) = @$row;
+    $results .= $rowid . ": " . $haiku . "\n";
+  }
+  return $results;
+}
+
+sub haikuQID {
+  my $id = shift;
+  if(!$id) { return "Missing ID -- See more: " . $config->{URL} . " -- See ?" . $config->{triggerHelp}; }
+  my $stmt = "SELECT id, haiku, sources FROM generated_quotehaiku WHERE id = ? ORDER BY datetime";
   my $sth = $dbh->prepare( $stmt );
   $sth->bind_param(1, $id);
   $sth->execute() or die $DBI::errstr;
