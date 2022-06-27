@@ -16,6 +16,7 @@
 	triggerQVote => 'qhaikuvote',
 	triggerHelp => 'haikuhelp',
 	triggerID => 'haikuid',
+	triggerQID => 'qhaikuid',
 	triggerTop => 'haikutop',
 	trigger5 => 'haiku5',
 	trigger7 => 'haiku7',
